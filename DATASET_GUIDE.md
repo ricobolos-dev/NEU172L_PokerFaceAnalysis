@@ -1,6 +1,6 @@
-# CLAUDE.md
+# Dataset Guide
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides documentation about the dataset structure and how to work with the data in this repository.
 
 ## Dataset Overview
 

@@ -43,7 +43,7 @@ This analysis uses the **Neural Decoding of Competitive Decision-Making in Rock-
 - `QUICKSTART.md` - Fast overview
 - `RUN_MATLAB_ANALYSIS.md` - Detailed MATLAB instructions
 - `ANALYSIS_GUIDE.md` - Python analysis walkthrough
-- `CLAUDE.md` - Dataset documentation
+- `DATASET_GUIDE.md` - Dataset documentation
 - `FinalProposal.pdf` - Original project proposal
 
 ---
@@ -183,7 +183,7 @@ NEU172L_Final/
 ├── step2b_markovchain.m                # Behavioral analysis
 ├── setup_toolboxes.m                   # MATLAB setup
 ├── RUN_ALL_ANALYSIS.m                  # Master script
-├── CLAUDE.md                           # Dataset documentation
+├── DATASET_GUIDE.md                    # Dataset documentation
 ├── *.md                                # Various guides
 ├── sub-XX/                             # Raw data (NOT in repo, download separately)
 │   └── eeg/
