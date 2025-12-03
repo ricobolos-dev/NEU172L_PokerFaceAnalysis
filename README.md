@@ -183,7 +183,6 @@ NEU172L_Final/
 ├── step2b_markovchain.m                # Behavioral analysis
 ├── setup_toolboxes.m                   # MATLAB setup
 ├── RUN_ALL_ANALYSIS.m                  # Master script
-├── CLAUDE.md                           # Dataset documentation
 ├── *.md                                # Various guides
 ├── sub-XX/                             # Raw data (NOT in repo, download separately)
 │   └── eeg/
