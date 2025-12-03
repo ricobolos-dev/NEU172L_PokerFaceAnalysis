@@ -15,7 +15,7 @@
 % If running standalone, uncomment the line below:
 % clear; close all; clc
 
-path_to_data = '.';  % FIXED: Data is in current directory
+path_to_data = '../..';  % Data is two directories up from scripts/matlab/
 path_to_code = '.';
 
 %% Set parameters
@@ -34,7 +34,7 @@ num_pairs = size(pair_ids,2);   % Number of pairs
 FS = 2048;                      % Biosemi sampling frequency
 
 % Load the demographics - this has information about which channels are bad
-participants = readtable('participants.tsv','FileType','text','Delimiter','\t');
+participants = readtable(fullfile(path_to_data,'participants.tsv'),'FileType','text','Delimiter','\t');
 
 %% Run pre-processing 
 % Load the data. If we want to find bad channels, plot the data for visual 

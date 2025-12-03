@@ -15,7 +15,7 @@
 % clearvars; clc;
 
 %% Set the path
-path_to_data = '.';  % FIXED: Data is in current directory
+path_to_data = '../..';  % Data is two directories up from scripts/matlab/
 
 %% Set parameters
 pair_ids = [1:9,11:22,25:34];   % Pair IDs (Pair 10 (major CMS issues for ppt 2), 23 (no triggers), and 24 (major CMS issues for ppt 2 - first 32 trials only) were excluded)

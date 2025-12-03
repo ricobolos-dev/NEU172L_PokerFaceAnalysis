@@ -2,12 +2,12 @@
 % Run this once at the beginning of each MATLAB session
 % Or add these lines to your startup.m file
 
-% Add FieldTrip to path
-addpath('/Users/ricobolos/Desktop/NEU172L_Final/fieldtrip')
+% Add FieldTrip to path (go up two directories from scripts/matlab/)
+addpath('../../fieldtrip')
 ft_defaults
 
 % Add CoSMoMVPA to path
-addpath(genpath('/Users/ricobolos/Desktop/NEU172L_Final/CoSMoMVPA'))
+addpath(genpath('../../CoSMoMVPA'))
 
 % Verify installation
 fprintf('\n==============================================\n');
