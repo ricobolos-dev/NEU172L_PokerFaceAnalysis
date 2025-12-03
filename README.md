@@ -43,7 +43,6 @@ This analysis uses the **Neural Decoding of Competitive Decision-Making in Rock-
 - `QUICKSTART.md` - Fast overview
 - `RUN_MATLAB_ANALYSIS.md` - Detailed MATLAB instructions
 - `ANALYSIS_GUIDE.md` - Python analysis walkthrough
-- `CLAUDE.md` - Dataset documentation
 - `FinalProposal.pdf` - Original project proposal
 
 ---
