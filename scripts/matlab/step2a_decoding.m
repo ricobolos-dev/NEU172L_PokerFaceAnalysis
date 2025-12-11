@@ -7,12 +7,10 @@
 %   - We excluded pair 10 (major CMS issues for ppt 2), 23 (no triggers),
 %   and 24 (major CMS issues for ppt 2 - first 32 trials only)
 
-% Note: 'clearvars' removed to preserve variables when called from RUN_ALL_ANALYSIS
-% If running standalone, uncomment the line below:
-% clearvars; clc;
+clearvars; clc;
 
 %% Set the path
-path_to_data = '../..';  % Data is two directories up from scripts/matlab/
+path_to_data = '../data';
 
 %% Set parameters
 pair_ids = [1:9,11:22,25:34];   % Pair IDs (Pair 10 (major CMS issues for ppt 2), 23 (no triggers), 24 (major CMS issues for ppt 2 for first first 32 trials) were excluded)
@@ -63,21 +61,16 @@ for p = 1:num_pairs
     % Loop over the 2 players in the pair
     for ppt = 1:2
 
-        % Load the pre-processed EEG data
-        fprintf('   ppt %.0f\n',ppt);
+        fprintf('   ppt %.0f\n',ppt);   
         load(sprintf('%s/derivatives/pair-%02d_player-%01d_task-RPS_eeg.mat',path_to_data,pair,ppt));
-
+        
         % Re-reference to the average reference
         cfg=[];
         cfg.reref      = 'yes';
         cfg.refchannel = 1:64;
         eeg_data = ft_preprocessing(cfg,eeg_data);
-
-        % Split the data into 3 parts:
-        %  - Get ready (2s)
-        %  - Response (2s)
-        %  - Feeback (1s)
-        % Do separate baseline corrections for each part
+        
+        % Split the data into 3 parts
         cfg = [];
         cfg.latency = [-0.2 2];
         eeg_data_partA = ft_selectdata(cfg,eeg_data);
@@ -85,165 +78,216 @@ for p = 1:num_pairs
         eeg_data_partB = ft_selectdata(cfg,eeg_data);
         cfg.latency = [3.8 5];
         eeg_data_partC = ft_selectdata(cfg,eeg_data);
-
-        % Shift the time labels for part B and C to make 0 the start of the
-        % response (B) or start of the feedback (C)
+        
+        % Shift time labels
         for trial_num = 1:num_trials
             eeg_data_partB.time{trial_num} = eeg_data_partA.time{trial_num};
             eeg_data_partC.time{trial_num} = eeg_data_partA.time{trial_num}(1,1:length(eeg_data_partC.time{trial_num}));
         end
-
-        % Baseline-correction: use the [-0.2 0] as a baseline.
-        % Run the baseline corrections for the trial parts
+        
+        % Baseline-correction
         cfg = [];
         cfg.demean = 'yes';
         cfg.baselinewindow = [-0.2 0];
         eeg_data_partA = ft_preprocessing(cfg,eeg_data_partA);
         eeg_data_partB = ft_preprocessing(cfg,eeg_data_partB);
         eeg_data_partC = ft_preprocessing(cfg,eeg_data_partC);
-
+        
         % Get the behavioural responses
         behav_data = all_behav_data(:,:,ppt);
-
-        % We can't decode the previous trial for the first trial of each
-        % block, because we don't have a history for this trial yet.
-        % We remove the first trial of each block (from behavioural data as
-        % well as EEG)
-        rem_idx = 1:40:480;
+        
+        % Remove the first trial of each block (indices 1, 41, 81...)
+        rem_idx = 1:40:480; 
+        
+        % Apply removal to behavior and EEG
         behav_data(rem_idx,:) = [];
-
-        % Do this is the EEG data as well as the behavioural data
         sel_idx = 1:num_trials;
         sel_idx(rem_idx) = [];
+        
         cfg = [];
         cfg.trials = sel_idx;
         eeg_data_partA = ft_selectdata(cfg,eeg_data_partA);
         eeg_data_partB = ft_selectdata(cfg,eeg_data_partB);
         eeg_data_partC = ft_selectdata(cfg,eeg_data_partC);
-
-        %% Average the data into time bins, and re-combine into 1 dataset
-        % (rather than 3 parts)
-        time_windows_AB = [0:0.25:1.75;0.25:0.25:2]';   % 0 to 2 seconds
-        time_windows_C = [0:0.25:0.75;0.25:0.25:1]';    % 0 to 1 second
-
-        % Pre-allocate the output dataset
+        
+        % Average into time bins
+        time_windows_AB = [0:0.25:1.75;0.25:0.25:2]';
+        time_windows_C = [0:0.25:0.75;0.25:0.25:1]';
+        
         eeg_data = eeg_data_partA;
-        eeg_data.trial = [];
-        eeg_data.time = [];
-
-        % Loop over trials
+        eeg_data.trial = []; eeg_data.time = [];
+        
         for trial_num = 1:size(eeg_data_partA.trial,2)
-            % Pre-allocate temporary matrix for the tial data
-            % We do this separately for A (decision) and B (response)
             temp_A = zeros(num_chan,size(time_windows_AB,1));
             temp_B = zeros(num_chan,size(time_windows_AB,1));
-            % Loop over the time bins for this part. Get the data for
-            % time-points in this time bin and average.
             for w_idx = 1:size(time_windows_AB,1)
                 temp_A(:,w_idx) = mean(eeg_data_partA.trial{trial_num}(:,eeg_data_partA.time{trial_num}>time_windows_AB(w_idx,1)&eeg_data_partA.time{trial_num}<time_windows_AB(w_idx,2)),2);
                 temp_B(:,w_idx) = mean(eeg_data_partB.trial{trial_num}(:,eeg_data_partB.time{trial_num}>time_windows_AB(w_idx,1)&eeg_data_partB.time{trial_num}<time_windows_AB(w_idx,2)),2);
             end
-            % Do the same for part C (feeback)
             temp_C = zeros(num_chan,size(time_windows_C,1));
             for w_idx = 1:size(time_windows_C,1)
                 temp_C(:,w_idx) = mean(eeg_data_partC.trial{trial_num}(:,eeg_data_partC.time{trial_num}>time_windows_C(w_idx,1)&eeg_data_partC.time{trial_num}<time_windows_C(w_idx,2)),2);
             end
-
-            % Now we can add the data to the the big matrix
             eeg_data.trial{trial_num} = [temp_A,temp_B,temp_C];
             eeg_data.time{trial_num} = [time_windows_AB(:,2);time_windows_AB(:,2)+2;time_windows_C(:,2)+4]';
-
         end
-
-        %% Convert the data from fieldtrip to cosmomvpa format
+        
+        % Convert to CosmoMVPA
         cfg = [];
         cfg.keeptrials = 'yes';
-        ds = cosmo_meeg_dataset(ft_timelockanalysis(cfg,eeg_data));
-        ds.sa = table2struct(array2table(behav_data,'VariableNames',{'self','other','result','selfp','otherp'}),'toscalar',1);
+        ds_full = cosmo_meeg_dataset(ft_timelockanalysis(cfg,eeg_data));
+        
+        % Attach labels (VariableNames: self, other, result, selfp, otherp)
+        ds_full.sa = table2struct(array2table(behav_data,'VariableNames',{'self','other','result','selfp','otherp'}),'toscalar',1);
+        
+        % 1. Load the Habit Vector
+        trial_file = fullfile(path_to_data, 'derivatives', sprintf('pair-%02d_player-%01d_task-RPS_trialclass.mat', pair, ppt));
+        if ~exist(trial_file, 'file')
+            continue; 
+        end
+        load(trial_file, 'habit_vector'); 
+        
+        % 2. Sync Habit Vector with EEG
+        habit_vector(rem_idx) = []; 
+        
+        % 3. Balance Trials
+        idx_habit = find(habit_vector == 1);
+        idx_surprise = find(habit_vector == 0);
+        
+        n_min = min(length(idx_habit), length(idx_surprise));
+        if n_min < 20
+            fprintf('Pair %d Player %d: Not enough trials (N=%d). Skipping.\n', pair, ppt, n_min);
+            continue;
+        end
+        
+        rng(pair*100 + ppt); 
+        idx_habit_sub = randsample(idx_habit, n_min);
+        idx_surprise_sub = randsample(idx_surprise, n_min);
+        
+        cond_indices = {idx_habit_sub, idx_surprise_sub};
+        cond_names = {'Habit', 'Surprise'};
 
-        %% Run the decoding
-        % Loop over things we want to decode
-        % 1 = played self
-        % 2 = played other
-        % 3 = played self previous trial
-        % 4 = played other previous trial
-        test_idx = 1:4;
-        for test = 1:size(test_idx,2)
+        % 4. Run Decoding Loop
+        for c = 1:2
+            current_idx = cond_indices{c};
+            current_cond = cond_names{c};
+            
+            decoding_accuracy = cell(1,4);
+            searchlight_acc = cell(1,4);
+            
+            for test = 1:4
+                ds_sel = ds_full; % Start with full preprocessed dataset
+                
+                % Set Targets based on test ID
+                if test == 1, targets = ds_sel.sa.self;
+                elseif test == 2, targets = ds_sel.sa.other;
+                elseif test == 3, targets = ds_sel.sa.selfp;
+                elseif test == 4, targets = ds_sel.sa.otherp;
+                end
+                
+                ds_sel.sa.targets = targets;
+                
+                % MASKING
+                % Filter 1: Valid targets (not NaN)
+                % Filter 2: Trials belonging to current condition (Habit or Surprise)
+                % MASKING: Filter for (1) Valid Targets (Not NaN and Not 0) AND (2) Current Condition
+                mask = ~isnan(targets) & targets > 0; 
+                mask(~ismember(1:length(targets), current_idx)) = false;
+                
+                % Apply slice
+                ds_sel = cosmo_slice(ds_sel, mask);
 
-            %%% DECODING %%%
-            % Save dataset under a new name
-            ds_sel = ds;
-
-            % Check what we decode and set the targets (what we decode)
-            switch test_idx(test)
-                case 1
-                    ds_sel.sa.targets = ds_sel.sa.self;
-                case 2
-                    ds_sel.sa.targets = ds_sel.sa.other;
-                case 3
-                    ds_sel.sa.targets = ds_sel.sa.selfp;
-                case 4
-                    ds_sel.sa.targets = ds_sel.sa.otherp;
+                % % 1. Define Frontal Channels
+                % frontal_chan_labels = {'Fp1','Fp2','AF7','AF3','AFz','AF4','AF8','F7','F5','F3','F1','Fz','F2','F4','F6','F8'};
+                % 
+                % % 2. Create Mask using cosmo_dim_match
+                % % This function looks up the channel names in the dataset 
+                % % and finds the features that match your list.
+                % try
+                %     mask_frontal = cosmo_dim_match(ds_sel, 'chan', frontal_chan_labels);
+                % 
+                %     % 3. Apply the Spatial Slice (Dimension 2 = Features)
+                %     ds_sel = cosmo_slice(ds_sel, mask_frontal, 2);
+                % 
+                % catch ME
+                %     % Fallback warning if channels are named differently in your specific file
+                %     warning('Could not match frontal channels. Using all channels instead. Error: %s', ME.message);
+                % end
+                
+                
+                % 1. Count trials for EACH class (Rock, Paper, Scissors)
+                % We need to know the limit of the RAREST move.
+                classes = unique(ds_sel.sa.targets);
+                class_counts = zeros(size(classes));
+                for i = 1:length(classes)
+                    class_counts(i) = sum(ds_sel.sa.targets == classes(i));
+                end
+                
+                % Find the count of the move played least often
+                min_class_count = min(class_counts);
+                
+                % 2. Calculate safe parameters
+                % We prefer averaging 4 trials, but we must adapt if data is scarce.
+                avg_count = 4;
+                
+                % Calculate max possible chunks for count=4
+                % Formula: We need (n_chunks * avg_count) <= min_class_count
+                n_chunks = floor(min_class_count / avg_count);
+                
+                % If we can't even support 2 chunks with count=4, reduce strictness
+                if n_chunks < 2
+                     % Try reducing average count to 2
+                     n_chunks = floor(min_class_count / 2);
+                     avg_count = 2;
+                     
+                     % If still not enough, drop to count=1 (no averaging, just balancing)
+                     if n_chunks < 2
+                         n_chunks = min_class_count; 
+                         avg_count = 1;
+                     end
+                end
+                
+                % Cap chunks at 10 (standard maximum)
+                if n_chunks > 10
+                    n_chunks = 10;
+                end
+                
+                % 3. Safety Check: If we still don't have enough data for 2 chunks
+                if n_chunks < 2
+                    fprintf('   Skipping %s (Cond: %s): Too few trials for rarest class (%d)\n', sprintf('P%d', ppt), current_cond, min_class_count);
+                    continue; 
+                end
+                
+                % 4. Apply Chunking and Averaging
+                ds_sel.sa.chunks = (1:numel(ds_sel.sa.targets))'; % Initialize
+                ds_sel.sa.chunks = cosmo_chunkize(ds_sel, n_chunks);
+                
+                % Run averaging with our safely calculated 'avg_count'
+                ds_sel = cosmo_average_samples(ds_sel, 'count', avg_count, 'repeats', 20, 'seed', 1);
+                
+                % ============================================================
+                
+                % Decoding Analysis
+                nh = cosmo_interval_neighborhood(ds_sel,'time','radius',0);
+                measure = @cosmo_crossvalidation_measure;
+                ma = struct();
+                ma.partitions = cosmo_nfold_partitioner(ds_sel);
+                ma.classifier = @cosmo_classify_lda;
+                ma.output = 'accuracy';
+                
+                % Run Searchlight
+                res = cosmo_searchlight(ds_sel,nh,measure,ma);
+                res.sa.pair = pair;
+                res.sa.player = ppt;
+                decoding_accuracy{test} = res;
             end
+            
+            % Save
+            save_name = sprintf('pair-%02d_player-%01d_task-RPS_decoding_%s.mat', pair, ppt, current_cond);
+            save(fullfile(path_to_data, 'derivatives', save_name), 'decoding_accuracy');
+        end
 
-            % remove no-responses
-            ds_sel = cosmo_slice(ds_sel,ds_sel.sa.targets>0);
-
-            % Make 10 chunks that are as balanced as possible based on targets
-            ds_sel.sa.chunks = (1:numel(ds_sel.sa.targets))';
-            ds_sel.sa.chunks = cosmo_chunkize(ds_sel,10);
-
-            % Average sample to improve signal to noise ratio. This also
-            % fixes the different number of trials for each response. We
-            % average 4 random samples together and repeat this 20 times.
-            ds_sel = cosmo_average_samples(ds_sel,'count',4,'repeats',20,'seed',1);
-
-            % define the neighbourhood (individual timepoints)
-            nh = cosmo_interval_neighborhood(ds_sel,'time','radius',0);
-
-            % classification parameters
-            measure = @cosmo_crossvalidation_measure;
-            ma = {};
-            ma.partitions = cosmo_nfold_partitioner(ds_sel);
-            % use LDA
-            ma.classifier = @cosmo_classify_lda;
-            % optional: use multiple cores in parallel
-            ma.nproc = 1;
-            ma.output = 'accuracy';
-
-            % Run the decoding
-            res = cosmo_searchlight(ds_sel,nh,measure,ma);
-
-            % Add additional information to the output
-            res.sa.pair = pair;
-            res.sa.player = ppt;
-                
-            % Save the decoding accuracy
-            decoding_accuracy{test} = res;
-
-            %%% CHANNEL SEARCHLIGHT %%%
-            % Make the neighbourhoors - set up channel neighbours for the searchlight
-            % Select 4 (or 5) neighbours
-            nh1 = cosmo_meeg_chan_neighborhood(ds_sel,'count',4,'label','dataset','label_threshold',.99);
-            nh2 = cosmo_interval_neighborhood(ds_sel,'time','radius',0);
-            nh_sl = cosmo_cross_neighborhood(ds_sel,{nh1,nh2});
-
-            % Run the searchlight
-            res_sl = cosmo_searchlight(ds_sel,nh_sl,measure,ma);
-
-            % Add additional information to the output
-            res_sl.sa.pair = pair;
-            res_sl.sa.player = ppt;
-                
-            % Save the decoding accuracy
-            searchlight_acc{test} = res_sl;
-
-        end % Loop over the things to decode
-
-        % Save the decoding & searchlight results for this player
-        save(sprintf('%s/derivatives/pair-%02d_player-%01d_task-RPS_decoding.mat',path_to_data,pair,ppt),'decoding_accuracy','searchlight_acc');
-
-    end % Loop over the 2 players in the pair
+        clearvars eeg_data eeg_data_partA eeg_data_partB eeg_data_partC ds_full ds_sel habit_vector decoding_accuracy searchlight_acc;
+    
+    end % End Participant Loop
 end % Loop over pairs
-
-
