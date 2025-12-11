@@ -10,12 +10,10 @@
 %   - We excluded pair 10 (major CMS issues for ppt 2), 23 (no triggers),
 %   and 24 (major CMS issues for ppt 2 - first 32 trials only)
 
-% Note: 'clearvars' removed to preserve variables when called from RUN_ALL_ANALYSIS
-% If running standalone, uncomment the line below:
-% clearvars; clc;
+clearvars; clc;
 
 %% Set the path
-path_to_data = '../..';  % Data is two directories up from scripts/matlab/
+path_to_data = '/Users/zengyichen/berkeley/NEU 172L/ds006761/data';
 
 %% Set parameters
 pair_ids = [1:9,11:22,25:34];   % Pair IDs (Pair 10 (major CMS issues for ppt 2), 23 (no triggers), and 24 (major CMS issues for ppt 2 - first 32 trials only) were excluded)
@@ -225,7 +223,26 @@ for p = 1:num_pairs
 
             end % Loop over trials
         end % Loop over window size
-
+        
+        % 1. Select the window size to define "Habit"
+        % We use N=5 (short-term history) as the definition of the player's pattern
+        target_window = 5; 
+        
+        % 2. Extract Column 4 from M_pred
+        % Structure: M_pred(pair, player, window, trials, metrics)
+        % Metric 4 is the Accuracy Boolean: 1 = Predicted (Habit), 0 = Unpredicted (Surprise)
+        habit_vector = squeeze(M_pred(p, ppt, target_window, :, 4));
+        
+        % 3. Handle the 'NaN' values (first N trials have no history)
+        % We mark them as -1 or NaN so the decoder knows to skip them
+        habit_vector(isnan(habit_vector)) = -1; 
+        
+        % 4. Save this specific vector for the Decoding Step
+        % We save it as 'trial_class.mat' in the derivatives folder
+        output_filename = sprintf('pair-%02d_player-%01d_task-RPS_trialclass.mat', pair, ppt);
+        save(fullfile(path_to_data, 'derivatives', output_filename), 'habit_vector');
+        
+        fprintf('Saved habit vector for Pair %d Player %d\n', pair, ppt);
 
     end % Loop over participant 1/2 in the pair
 end % Loop over pairs
